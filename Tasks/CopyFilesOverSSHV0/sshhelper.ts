@@ -1,5 +1,6 @@
 import Q = require('q');
 import tl = require('azure-pipelines-task-lib/task');
+const path = require('path');
 var Ssh2Client = require('ssh2').Client;
 var SftpClient = require('ssh2-sftp-client');
 
@@ -102,6 +103,20 @@ export class SshHelper {
         if (!this.sftpClient) {
             defer.reject(tl.loc('ConnectionNotSetup'));
         }
+
+        if (process.platform === 'win32') {
+            dest = dest.replace(/\\/g, '/');
+        }
+
+        const remotePath = path.dirname(dest);
+        try {
+            if (!await this.sftpClient.exists(remotePath)) {
+                await this.sftpClient.mkdir(remotePath, true);
+            }
+        } catch (error) {
+            defer.reject(tl.loc('TargetNotCreated', remotePath));
+        }
+
         try {
             await this.sftpClient.put(sourceFile, dest);
             defer.resolve(dest);
